@@ -1,11 +1,14 @@
 
 define(function() {
     function GameOfLife(elem, size, updateFrequency) {
-        var CELL_SIZE = 10;
+        var CELL_SIZE = 5;
+        var DEAD_COLOR = '#FFFFFF';
+        var ALIVE_COLOR = '#000000';
 
         this.elem = elem;
         this.size = size;
         this.updateFrequency = updateFrequency;
+        this.ctx = this.elem.getContext('2d');
 
         this.board = new Array(size * size);
 
@@ -19,36 +22,43 @@ define(function() {
         }
 
         this.draw = function() {
-            var ctx = this.elem.getContext('2d');
-            var WHITE = '#FFFFFF';
-            var BLACK = '#000000';
+            //this.ctx.clearRect(0, 0, size * CELL_SIZE, size * CELL_SIZE);
+
+            // DEBUG
+            //ALIVE_COLOR = randomHexColor();
 
             for (var i = 0; i < this.size; i++) {
                 for (var j = 0; j < this.size; j++) {
-                    ctx.fillStyle = this.board[i*size + j] ? BLACK : WHITE;
-                    ctx.fillRect(i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    this.ctx.fillStyle = this.board[i*size + j] ? ALIVE_COLOR : DEAD_COLOR;
+                    this.ctx.fillRect(i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE, CELL_SIZE);
                 }
             }
         }
 
-        this.init = function() {
-            this.createBoard();
+        this.drawCell = function(idx, change) {
+            var x = this.getCol(idx) * CELL_SIZE;
+            var y = this.getRow(idx) * CELL_SIZE;
 
-            var newBoard = new Array(this.size * this.size);
-            for (var i = 0; i < this.board.length; i++) {
-                newBoard[i] = this.getCellNextState(i);
-            }
-            this.board = newBoard;
+            this.ctx.fillStyle = this.board[idx] ? ALIVE_COLOR : DEAD_COLOR;
+            this.ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+        }
+
+        this.init = function() {
+            ALIVE_COLOR = randomHexColor();
+            this.createBoard();
             this.draw();
-            this.timeout = setTimeout(this.update.bind(this), this.updateFrequency);
+            this.update();
         }
 
         this.update = function() {
             var numAliveCells = 0;
+            var newBoard = new Array(this.size * this.size);
+
             for (var i = 0; i < this.board.length; i++) {
-                this.updateCell(i);
-                if (this.board[i]) { numAliveCells++; }
+                newBoard[i] = this.getCellNextState(i);
+                if (newBoard[i]) { numAliveCells++; }
             }
+            this.board = newBoard;
             this.draw();
 
             if (numAliveCells === 0) {
@@ -69,12 +79,19 @@ define(function() {
         }
 
         this.updateCell = function(idx) {
+            var oldVal = this.board[idx];
             this.board[idx] = this.getCellNextState(idx);
+            this.drawCell(idx, oldVal !== this.board[idx]);
         }
 
         this.getCellNextState = function(idx) {
             var liveNeighbors = this.countLiveNeighbors(idx);
-            if (this.board[idx] /*is cell alive?*/) {
+            //return this.conwayRules(this.board[idx], liveNeighbors);
+            return this.experimentalRules(this.board[idx], liveNeighbors);
+        }
+
+        this.conwayRules = function(isCellAlive, liveNeighbors) {
+            if (isCellAlive) {
                 // Any live cell with fewer than 2 neighbors dies, by under-population.
                 // Any live cell with 2 or 3 live neighbors lives onto the next generation.
                 // Any live cell with more than 3 neighbors dies, by overcrowding.
@@ -83,6 +100,15 @@ define(function() {
             else {
                 // Any dead cell with exactly 3 live neighbors becomes a live cell, by reproduction.
                 return liveNeighbors === 3;
+            }
+        }
+
+        this.experimentalRules = function(isCellAlive, liveNeighbors) {
+            if (isCellAlive) {
+                return liveNeighbors > 3;
+            }
+            else {
+                return liveNeighbors === 0;
             }
         }
 
@@ -108,6 +134,10 @@ define(function() {
                 }
             }
             return liveNeighbors;
+        }
+
+        function randomHexColor() {
+            return '#' + Math.round(Math.random() * 0xFFFFFF).toString(16);
         }
 
         //////////////////////////////////////////////////////////
